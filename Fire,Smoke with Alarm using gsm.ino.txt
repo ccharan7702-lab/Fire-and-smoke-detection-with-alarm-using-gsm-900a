@@ -1,0 +1,118 @@
+#include <SoftwareSerial.h>
+
+// Pin Definitions
+const int flameSensorPin = 4;    // Digital pin for Flame sensor
+const int smokeSensorPin = A0;   // Analog pin for MQ-2 smoke sensor
+const int buzzerPin = 5;         // Digital pin for buzzer
+
+// GSM Module Configuration
+SoftwareSerial SIM900(9, 10);    // RX, TX for SIM900A (Changed for reliable communication)
+
+// Threshold values
+const int smokeThreshold = 300;  // Adjust based on MQ2 calibration
+const int flameThreshold = LOW;  // Flame sensor gives LOW when flame detected
+
+// Phone numbers to send SMS alerts
+String phoneNumber1 = "+91XXXXXXXXXX";  // Replace with your number
+String phoneNumber2 = "+91XXXXXXXXXX";  // Replace with second number if needed
+
+// Alarm state variables
+bool alarmActive = false;
+unsigned long lastSMSTime = 0;
+const unsigned long smsCooldownPeriod = 60000; // 1 minute cooldown
+
+void setup() {
+  Serial.begin(9600);
+  SIM900.begin(9600);
+  delay(1000);
+
+  pinMode(flameSensorPin, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
+
+  Serial.println("Initializing GSM module...");
+  delay(3000); // Allow time for GSM network registration
+
+  SIM900.println("AT");
+  updateSerial();
+
+  SIM900.println("AT+CMGF=1");  // Set SMS text mode
+  updateSerial();
+
+  Serial.println("System Ready!");
+}
+
+void loop() {
+  int smokeValue = analogRead(smokeSensorPin);
+  int flameValue = digitalRead(flameSensorPin);
+
+  Serial.print("Smoke: ");
+  Serial.print(smokeValue);
+  Serial.print(" | Flame: ");
+  Serial.println(flameValue);
+
+  if (smokeValue > smokeThreshold || flameValue == flameThreshold) {
+    fireDetected(smokeValue, flameValue);
+  } else {
+    noFireDetected();
+  }
+
+  delay(400);
+}
+
+void fireDetected(int smokeValue, int flameValue) {
+  if (!alarmActive) {
+    Serial.println("⚠ WARNING: FIRE / SMOKE DETECTED!");
+    alarmActive = true;
+
+    digitalWrite(buzzerPin, HIGH);  // Alarm ON
+
+    unsigned long currentTime = millis();
+    if (currentTime - lastSMSTime > smsCooldownPeriod) {
+      sendSMS(phoneNumber1, smokeValue, flameValue);
+      delay(1000);
+      sendSMS(phoneNumber2, smokeValue, flameValue);
+      lastSMSTime = currentTime;
+    }
+  }
+}
+
+void noFireDetected() {
+  if (alarmActive) {
+    Serial.println("STATUS: Normal Condition Restored");
+    alarmActive = false;
+  }
+  digitalWrite(buzzerPin, LOW); // Alarm OFF
+}
+
+void sendSMS(String phoneNumber, int smokeValue, int flameValue) {
+  Serial.println("Sending SMS...");
+
+  SIM900.print("AT+CMGS=\"");
+  SIM900.print(phoneNumber);
+  SIM900.println("\"");
+  delay(800);
+
+  SIM900.print("EMERGENCY ALERT!\nFIRE or heavy SMOKE detected!\n");
+  SIM900.print("Smoke Level: ");
+  SIM900.print(smokeValue);
+  SIM900.print("\nFlame Sensor: ");
+  SIM900.print(flameValue == LOW ? "FLAME DETECTED" : "NO FLAME");
+  SIM900.println("\nTake immediate action!");
+
+  delay(500);
+  SIM900.write(26);   // CTRL+Z to send SMS
+  delay(1500);
+
+  Serial.println("SMS Sent Successfully!");
+}
+
+void updateSerial() {
+  delay(500);
+  while (Serial.available()) {
+    SIM900.write(Serial.read());
+  }
+  while (SIM900.available()) {
+    Serial.write(SIM900.read());
+  }
+}
