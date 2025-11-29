@@ -1,4 +1,4 @@
-# Fire-and-smoke-detection-with-alarm-using-gsm-900a
+# Fire-and-smoke-detection-with-alarm-and-gsm-900a-using-arduino uno
 Fire and Smoke Alarm System with GSM SMS Alerts using Arduino  This Arduino project detects fire and smoke using an MQ-2 smoke sensor and a flame sensor. If a dangerous condition is detected, it activates a buzzer and automatically sends emergency SMS alerts via a SIM900 GSM module to up to two configured phone numbers.
 Arduino-based fire and smoke alarm system using MQ-2 gas sensor and flame sensor, with local buzzer alarm and SMS alerts via SIM900A GSM module to two emergency contacts.​​
 
